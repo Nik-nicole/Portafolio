@@ -5,19 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Send, User, Bot, ChevronDown, ChevronUp } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useToast } from "@/components/ui/use-toast"
-
-interface Message {
-  id: string
-  content: string
-  sender: "user" | "ai"
-  timestamp: Date
-}
+import { useChatAssistant, type ChatMessage as Message } from "@/hooks/use-chat-assistant"
 
 // Contexto de la IA con información detallada
 const aiContext = {
-  name: "Tu Nombre",
-  role: "Desarrolladora Full Stack con experiencia en IA y Visión por Computadora",
+  name: "Nicole Paez",
+  role: "Desarrolladora enfocada en IA con visión por computador, frontend y experiencias digitales",
   experience: {
     education: [
       "🎓 Técnico en Programación de Software — SENA",
@@ -106,18 +99,15 @@ const SUGGESTED_QUESTIONS = [
 export default function ChatWidget() {
   // El historial comienza oculto; solo se ve la barra hasta que el usuario expande el chat
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      content: `¡Hola! Soy el asistente de ${aiContext.name}. ¿En qué puedo ayudarte hoy? 😊\n\nPuedes preguntarme sobre mi experiencia, proyectos o habilidades técnicas.`,
-      sender: "ai",
-      timestamp: new Date(),
-    },
-  ])
-  const [inputValue, setInputValue] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [showSuggestedQuestions, setShowSuggestedQuestions] = useState(true)
-  const { toast } = useToast()
+  const {
+    messages,
+    inputValue,
+    isLoading,
+    setInputValue,
+    handleSendMessage,
+    handleSuggestedQuestion,
+    clearChat,
+  } = useChatAssistant()
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -151,247 +141,11 @@ export default function ChatWidget() {
     }
   }, [messages, scrollToBottom])
 
-  // Normaliza texto: minúsculas, sin tildes, sin espacios extra
-  const normalizeText = (text: string) =>
-    text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-
-  const generateAIResponse = (rawInput: string): string => {
-    const input = normalizeText(rawInput)
-
-    const unrelatedKeywords = [
-      "como estas",
-      "que haces",
-      "que tal",
-      "clima",
-      "tiempo",
-      "noticias",
-      "chiste",
-      "cuenta un chiste",
-      "cual es tu edad",
-      "cuantos anos tienes",
-      "de donde eres",
-      "quien te creo",
-      "eres real",
-      "eres un bot",
-      "eres humano"
-    ]
-
-    if (unrelatedKeywords.some((keyword) => input.includes(keyword))) {
-      return "Solo puedo responder preguntas relacionadas con el portafolio, la experiencia, los proyectos, las habilidades y la formación de la desarrolladora. Si quieres, puedo contarte sobre sus proyectos o experiencia profesional."
-    }
-
-    if (input.includes("hola") || input.includes("buenos dias") || input.includes("buenas tardes") || input.includes("buenas noches") || input.includes("saludos")) {
-      return `Hola, soy el asistente del portafolio de ${aiContext.name}. ¿En qué puedo ayudarte hoy? �\n\nPuedes preguntarme sobre:\n• Experiencia profesional\n• Proyectos\n• Habilidades técnicas\n• Formación académica\n• Intereses personales`;
-    }
-
-    if (input.includes("nombre") || input.includes("como te llamas") || input.includes("cual es tu nombre") || input.includes("quien eres")) {
-      return `Soy el asistente del portafolio de ${aiContext.name}. Estoy aquí para ayudarte a conocer mejor su experiencia, proyectos y habilidades.`
-    }
-
-    if (input.includes("proyecto") || input.includes("proyectos") || input.includes("portafolio")) {
-      return (
-        "Proyectos destacados:\n\n" +
-        "1. Reconocimiento de Lengua de Señas Colombiana (LSC). Sistema de reconocimiento usando visión por computadora.\n\n" +
-        "2. Turnito, aplicación móvil para gestión de turnos con autenticación de Google.\n\n" +
-        "3. CiberHero, plataforma gamificada para aprendizaje en ciberseguridad.\n\n" +
-        "¿Sobre cuál de estos proyectos te gustaría saber más?"
-      )
-    }
-
-    if (input.includes("habilidad") || input.includes("habilidades") || input.includes("tecnolog") || input.includes("stack") || input.includes("sabes")) {
-      return (
-        "Habilidades técnicas principales:\n\n" +
-        "• IA y visión por computadora: YOLO, TensorFlow, OpenCV, MediaPipe, MobileNet.\n" +
-        "• Desarrollo web: React, Next.js, Tailwind CSS, Vite.\n" +
-        "• Desarrollo móvil: React Native, Expo.\n" +
-        "• Backend: Node.js, Spring Boot, PostgreSQL.\n\n" +
-        "Si quieres, puedo explicarte con más detalle alguna de estas áreas."
-      )
-    }
-
-    if (input.includes("experiencia") || input.includes("trabajo") || input.includes("laboral") || input.includes("trayectoria")) {
-      return (
-        "Experiencia profesional:\n\n" +
-        "1. Fábrica de Software - SENA. Un año de trabajo en proyectos de IA y visión por computadora, en un entorno con metodologías ágiles.\n\n" +
-        "2. Fundación Bolívar Davivienda. Un año de prácticas profesionales desarrollando herramientas de automatización con AppScript y colaborando con equipos multidisciplinarios.\n\n" +
-        "Puedo darte más detalles sobre cualquiera de estas experiencias si lo necesitas."
-      )
-    }
-
-    if (input.includes("estudio") || input.includes("estudios") || input.includes("formacion") || input.includes("formacion academica") || input.includes("educacion")) {
-      return (
-        "Formación académica:\n\n" +
-        "• Técnico en Programación de Software — SENA.\n" +
-        "• Tecnólogo en Análisis y Desarrollo de Software — SENA (Fábrica de Software).\n" +
-        "• Reconocimientos en competencias y hackathones nacionales.\n\n" +
-        "Si quieres, puedo contarte más sobre esta trayectoria académica."
-      )
-    }
-
-    if (input.includes("interes") || input.includes("intereses") || input.includes("gusta") || input.includes("gustos") || input.includes("hobby") || input.includes("hobbies")) {
-      return (
-        "Algunos intereses personales son:\n\n" +
-        "• Pintar acuarela.\n" +
-        "• Tocar guitarra.\n" +
-        "• Jugar tenis.\n" +
-        "• Crear interfaces cuidadas y funcionales.\n" +
-        "• Aprender nuevas tecnologías.\n\n" +
-        "¿Hay algún interés del que quieras que hablemos más?"
-      )
-    }
-
-    if (input.includes("concurso") || input.includes("competencia") || input.includes("senasoft") || input.includes("hackathon") || input.includes("mintic")) {
-      return (
-        "Concursos y logros destacados:\n\n" +
-        "• " + aiContext.experience.contests[0] + ".\n" +
-        "  Era una app web para ayudar a que no se desperdiciara tanta comida. Permitía a negocios vender comida a menor precio, donarla o usarla para ayudar a personas, e incluía la idea de beneficios para las empresas (como reducir impuestos) si aprovechaban mejor esos alimentos.\n\n" +
-        "• " + aiContext.experience.contests[1] + ".\n" +
-        "  CiberHero es un juego de aprendizaje en ciberseguridad que se adapta a ti: si respondes mal, las preguntas y explicaciones cambian para ayudarte a entender mejor y que el aprendizaje se ajuste a ti, no tú a él.\n\n" +
-        "Si quieres, puedo contarte con más detalle sobre Senasoft o sobre la Hackathon MinTIC."
-      )
-    }
-
-    if (input.includes("fortaleza") || input.includes("fortalezas") || input.includes("debilidad") || input.includes("debilidades")) {
-      return (
-        "Fortalezas y debilidades:\n\n" +
-        "Fortalezas:\n" +
-        "• " + aiContext.strengths.join(".\n• ") + ".\n\n" +
-        "Debilidades (en las que estoy trabajando):\n" +
-        "• " + aiContext.weaknesses.join(".\n• ") + ".\n\n" +
-        "Me gusta ser honesta con estas cosas porque también muestran cómo estoy creciendo como desarrolladora."
-      )
-    }
-
-    if (input.includes("softskill") || input.includes("soft skill") || input.includes("habilidades blandas") || input.includes("habilidad blanda")) {
-      return (
-        "Algunas de mis soft skills más importantes son:\n\n" +
-        "• " + aiContext.softSkills.join(".\n• ") + ".\n\n" +
-        "Estas habilidades me han ayudado mucho en equipos de trabajo, hackathons y proyectos con personas de diferentes perfiles."
-      )
-    }
-
-    if (input.includes("junior") || input.includes("nivel") || input.includes("experiencia") && input.includes("anos")) {
-      return (
-        aiContext.level + ".\n\n" +
-        "He trabajado en proyectos reales en Fábrica de Software, en la Fundación Bolívar Davivienda y en competencias como Senasoft y la Hackathon MinTIC.\n" +
-        "Mi enfoque es seguir creciendo rápido, pero siendo honesta con mi nivel actual."
-      )
-    }
-
-    if (input.includes("salario") || input.includes("sueldo") || input.includes("aspiracion salarial") || input.includes("cuanto quieres ganar") || input.includes("salario minimo")) {
-      return (
-        "Mi expectativa salarial actual es: " + aiContext.salaryRange + ".\n" +
-        "Estoy abierta a conversar según el rol, el tipo de proyecto y las oportunidades de crecimiento que ofrezca la empresa."
-      )
-    }
-
-    if (input.includes("python") || input.includes("pyton")) {
-      return (
-        "Sí, manejo Python, especialmente en contextos de inteligencia artificial y visión por computadora.\n\n" +
-        "Por ejemplo, en el proyecto de reconocimiento de lengua de señas colombiana usé Python junto con TensorFlow, OpenCV y otras librerías para entrenar y probar los modelos.\n" +
-        "En la página del portafolio puedes ver más detalles en la sección de proyectos de IA."
-      )
-    }
-
-    if (input.includes("mejor experiencia") || input.includes("mejor experie") || input.includes("experiencia favorita") || input.includes("experiencia que mas te gusto")) {
-      return (
-        "Una de mis mejores experiencias fue la competencia nacional Senasoft.\n\n" +
-        "Trabajamos en un sistema de reconocimiento de lengua de señas colombiana usando IA y visión por computadora. Fue retador por la parte técnica y también por el trabajo en equipo bajo presión.\n" +
-        "Aprendí a organizar mejor las tareas, a comunicarme con el equipo y a confiar en mis habilidades, y además obtuvimos el 3er puesto nacional."
-      )
-    }
-
-    if (input.includes("idioma") || input.includes("idiomas") || input.includes("lengua") || input.includes("lenguajes")) {
-      return (
-        "Idiomas que manejo:\n\n" +
-        aiContext.languages.join("\n") +
-        "\n\nPuedo comentarte cómo he aplicado estos idiomas en proyectos o estudios si lo necesitas."
-      )
-    }
-
-    return (
-      "No estoy seguro de haber entendido bien tu pregunta.\n\n" +
-      "Puedo ayudarte con información sobre:\n" +
-      "• Experiencia laboral.\n" +
-      "• Proyectos técnicos.\n" +
-      "• Habilidades en programación.\n" +
-      "• Formación académica.\n\n" +
-      "Si quieres, reformula tu pregunta o dime directamente sobre qué aspecto te gustaría saber más."
-    )
-  }
-
-  const handleSendMessage = async () => {
-    const trimmedInput = inputValue.trim()
-    if (!trimmedInput || isLoading) return
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: trimmedInput,
-      sender: "user",
-      timestamp: new Date(),
-    }
-
-    // Mantener solo los últimos mensajes para que el chat no haga crecer mucho la página
-    setMessages((prev) => [...prev.slice(-4), userMessage])
-    // Desplazar al final después de agregar el mensaje del usuario
-    scrollToBottom("smooth")
-    setInputValue("")
-    setIsLoading(true)
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 600))
-
-      const aiResponse = generateAIResponse(trimmedInput)
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: aiResponse,
-        sender: "ai",
-        timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev.slice(-4), aiMessage])
-      // Desplazar al final después de agregar la respuesta de la IA
-      scrollToBottom("smooth")
-    } catch (error) {
-      console.error("Error al enviar mensaje:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo enviar el mensaje. Intenta de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
     }
-  }
-
-  const handleSuggestedQuestion = (question: string) => {
-    setInputValue(question)
-    setTimeout(() => {
-      handleSendMessage()
-    }, 100)
-  }
-
-  const clearChat = () => {
-    setMessages([
-      {
-        id: "welcome",
-        content: `¡Hola! Soy el asistente de ${aiContext.name}. ¿En qué puedo ayudarte hoy? 😊\n\nPuedes preguntarme sobre mi experiencia, proyectos o habilidades técnicas.`,
-        sender: "ai",
-        timestamp: new Date(),
-      },
-    ])
   }
 
   return (
